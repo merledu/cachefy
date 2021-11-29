@@ -1,8 +1,5 @@
-Scala Chisel Learning Journey
+Caches Repo
 =======================
-
-[![Join the chat at https://gitter.im/merledu/scala-chisel-learning-journey](https://badges.gitter.im/merledu/scala-chisel-learning-journey.svg)](https://gitter.im/merledu/scala-chisel-learning-journey?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 
 Start by setting up the working enviroment
 
@@ -34,8 +31,6 @@ You should see a whole bunch of output that ends with something like the followi
 If you see the above then...
 
 ### It worked!
-
-You are ready to go. Next step is to go inside the `docs/` folder where you will find the labs to perform.
 
 ### For quick debugging
 If you quickly want to see what verilog is being generated, go to this link  https://bit.ly/3u3zr0e and write Chisel here.
