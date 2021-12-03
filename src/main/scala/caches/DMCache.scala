@@ -13,9 +13,9 @@ class DMCache extends Module {
     })
 
     val mem = SyncReadMem(16, UInt(32.W))
-    val cache_valid = SyncReadMem(4, Bool())
-    val cache_tags = SyncReadMem(4,UInt(2.W))
-    val cache_data = SyncReadMem(4,UInt(32.W))
+    val cache_valid = SyncReadMem(4, Bool())    // VALID
+    val cache_tags = SyncReadMem(4,UInt(2.W))   // TAGS
+    val cache_data = SyncReadMem(4,UInt(32.W))  // DATA
 
     for(i <- 0 to 3){
         cache_valid.write(i.U(2.W),false.B)
@@ -25,16 +25,18 @@ class DMCache extends Module {
 
     io.miss := true.B
 
-    when(io.wr_en === true.B){         
+    when(io.wr_en === true.B){         // write req
         mem.write(io.adr, io.data_in)
         io.miss := true.B
     }.otherwise{
 
+        // CACHE HIT
         when(cache_valid.read(io.adr(1,0)) && cache_tags.read(io.adr(1,0)) === io.adr(3,2)){
                 
                 io.data_out := cache_data(io.adr(1,0))
                 io.miss := false.B
 
+        // CACHE MISS
         }.otherwise{
 
                 
