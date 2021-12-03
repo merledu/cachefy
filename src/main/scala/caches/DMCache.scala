@@ -12,7 +12,7 @@ class DMCache(DW:Int, AW:Int) extends Module {
         val miss = Output(Bool())
     })
 
-    val cache_width = log2Ceil(AWZ)
+    val cache_width = log2Ceil(AW)
     val cache_half_width = cache_width/2
 
     val mem = SyncReadMem(cache_width, UInt(32.W))
@@ -21,7 +21,7 @@ class DMCache(DW:Int, AW:Int) extends Module {
     val cache_data = SyncReadMem(cache_width,UInt(32.W))  // DATA
 
     for(i <- 0 to cache_width.toInt-1){
-        cache_valid.write(i.U(2.W),false.B)
+        cache_valid.write(i.U(log2Ceil(cache_width).W),false.B)
     }
 
     val data = WireInit(0.U(32.W))
