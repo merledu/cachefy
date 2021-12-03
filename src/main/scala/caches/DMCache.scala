@@ -3,21 +3,24 @@ package caches
 import chisel3._ 
 import chisel3.util._ 
 
-class DMCache extends Module {
+class DMCache(DW:Int, AW:Int) extends Module {
     val io = IO(new Bundle{
-        val adr = Input(UInt(4.W))
+        val adr = Input(UInt(AW.W))
         val wr_en = Input(Bool())
-        val data_in = Input(UInt(32.W))
-        val data_out = Output(UInt(32.W))
+        val data_in = Input(UInt(DW.W))
+        val data_out = Output(UInt(DW.W))
         val miss = Output(Bool())
     })
 
-    val mem = SyncReadMem(16, UInt(32.W))
-    val cache_valid = SyncReadMem(4, Bool())    // VALID
-    val cache_tags = SyncReadMem(4,UInt(2.W))   // TAGS
-    val cache_data = SyncReadMem(4,UInt(32.W))  // DATA
+    val cache_width = log2Ceil(AWZ)
+    val cache_half_width = cache_width/2
 
-    for(i <- 0 to 3){
+    val mem = SyncReadMem(cache_width, UInt(32.W))
+    val cache_valid = SyncReadMem(cache_width, Bool())    // VALID
+    val cache_tags = SyncReadMem(cache_width,UInt(2.W))   // TAGS
+    val cache_data = SyncReadMem(cache_width,UInt(32.W))  // DATA
+
+    for(i <- 0 to cache_width.toInt-1){
         cache_valid.write(i.U(2.W),false.B)
     }
 
@@ -31,9 +34,9 @@ class DMCache extends Module {
     }.otherwise{
 
         // CACHE HIT
-        when(cache_valid.read(io.adr(1,0)) && cache_tags.read(io.adr(1,0)) === io.adr(3,2)){
+        when(cache_valid.read(io.adr(cache_half_width,0)) && cache_tags.read(io.adr(cache_half_width,0)) === io.adr(cache_width-1,cache_width-2)){
                 
-                io.data_out := cache_data(io.adr(1,0))
+                io.data_out := cache_data(io.adr(cache_half_width,0))
                 io.miss := false.B
 
         // CACHE MISS
@@ -41,9 +44,9 @@ class DMCache extends Module {
 
                 
                 data := mem.read(io.adr)
-                cache_valid.write(io.adr(1,0), true.B)
-                cache_tags.write(io.adr(1,0), io.adr(3,2))
-                cache_data.write(io.adr(1,0), data)
+                cache_valid.write(io.adr(cache_half_width,0), true.B)
+                cache_tags.write(io.adr(cache_half_width,0), io.adr(cache_width-1,cache_width-2))
+                cache_data.write(io.adr(cache_half_width,0), data)
                 io.miss := true.B
                 
         }
