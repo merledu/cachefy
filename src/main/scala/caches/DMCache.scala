@@ -2,8 +2,9 @@ package chisel_caches.caches
 
 import chisel3._ 
 import chisel3.util._ 
+import jigsaw.rams.fpga.BlockRamWithMasking
 
-class DMCache(DW:Int, AW:Int) extends Module {
+class DMCache(DW:Int, AW:Int, mainMem:BlockRamWithMasking) extends Module {
     val io = IO(new Bundle{
         val adr = Input(UInt(AW.W))
         val wr_en = Input(Bool())
@@ -15,7 +16,7 @@ class DMCache(DW:Int, AW:Int) extends Module {
     val cache_width = log2Ceil(AW)
     val cache_half_width = cache_width/2
 
-    val mem = SyncReadMem(cache_width, UInt(32.W))
+    val mem = mainMem //SyncReadMem(cache_width, UInt(32.W))
     val cache_valid = SyncReadMem(cache_width, Bool())    // VALID
     val cache_tags = SyncReadMem(cache_width,UInt(2.W))   // TAGS
     val cache_data = SyncReadMem(cache_width,UInt(32.W))  // DATA
