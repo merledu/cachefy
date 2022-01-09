@@ -6,40 +6,48 @@ import jigsaw.rams.fpga.BlockRamWithMasking
 import caravan.bus.common.{AbstrRequest, AbstrResponse, BusConfig}
 
 class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
-                    (mainMem:BlockRamWithMasking) extends Module {
+                    (gen: A, gen1: B) extends Module {
     val io = IO(new Bundle{
-        val req = Flipped(Decoupled(gen))
-        val rsp = Decoupled(gen1)
+        val reqIn = Flipped(Decoupled(gen))
+        val rspOut = Decoupled(gen1)
+        val reqOut = Flipped(Decoupled(gen))
+        val rspIn = Decoupled(gen1)
     })
 
-    val cache = Module(new DMCache(32,1024, mainMem))
+  //TODO: MAKE ROWS AND COLS DYNAMIC
+    val cache = Module(new DMCache(32,1024/*, mainMem*/))
 
     val validReg = RegInit(false.B)
 
-    io.rsp.valid := validReg
-    io.rsp.bits.error := false.B
-    io.req.ready := true.B // assuming we are always ready to accept requests from device
+    io.rspOut.valid := validReg
+    io.rspOut.bits.error := false.B
+    io.reqIn.ready := true.B // assuming we are always ready to accept requests from device
 
-    when(io.req.fire() && !io.req.bits.isWrite) {
+    io.rspOut.bits.dataResponse := Mux(io.rspIn.valid, io.rspIn.bits.dataResponse, DontCare)
+
+    when(io.reqIn.fire() && !io.reqIn.bits.isWrite) {
     // READ
-    cache.io.adr := io.req.bits.addrRequest
+    cache.io.adr := io.reqIn.bits.addrRequest
     cache.io.wr_en := false.B
     cache.io.data_in := 0.U
-    io.rsp.bits.dataResponse := cache.io.data_out 
+    io.rspOut.bits.dataResponse := cache.io.data_out 
     validReg := true.B
-  } .elsewhen(io.req.fire() && io.req.bits.isWrite) {
+  } .elsewhen(io.reqIn.fire() && io.reqIn.bits.isWrite) {
     // WRITE
-    cache.io.adr := io.req.bits.addrRequest
+    cache.io.adr := io.reqIn.bits.addrRequest
     cache.io.wr_en := true.B
-    cache.io.data_in := io.req.bits.dataRequest
+    cache.io.data_in := io.reqIn.bits.dataRequest
     validReg := true.B
-    io.rsp.bits.dataResponse := DontCare
+    // io.rspOut.bits.dataResponse := DontCare
   } .otherwise {
     cache.io.adr := 0.U
     cache.io.wr_en := false.B
     cache.io.data_in := 0.U
     validReg := false.B
-    io.rsp.bits.dataResponse := DontCare
+    // io.rspOut.bits.dataResponse := DontCare
   }
+
+  io.reqOut.bits <> io.reqIn.bits
+  io.reqOut.valid := ~cache.io.miss
 
 }
