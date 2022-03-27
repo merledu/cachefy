@@ -8,35 +8,35 @@ import caravan.bus.common.{AbstrRequest, AbstrResponse, BusConfig}
 class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
                     (cacheAddrWidth:Int, dataAddrWidth:Int, dataWidth:Int)(gen: A, gen1: B) extends Module {
     val io = IO(new Bundle{
-        val reqIn = Flipped(Decoupled(gen))
-        val rspOut = Decoupled(gen1)
-        val reqOut = Flipped(Decoupled(gen))
-        val rspIn = Decoupled(gen1)
+      val reqIn:          DecoupledIO[A]      =      Flipped(Decoupled(gen))
+      val rspOut:       DecoupledIO[B]      =      Decoupled(gen1)
+      val reqOut:       DecoupledIO[A]      =     Flipped(Decoupled(gen))
+      val rspIn:          DecoupledIO[B]      =     Decoupled(gen1)
     })
 
   //TODO: MAKE ROWS AND COLS DYNAMIC
     // val cache = Module(new DMCache(10,32,32/*, mainMem*/))
 
-    val cacheRows = (math.pow(2,cacheAddrWidth)).toInt
-    val cacheAddress = io.reqIn.bits.addrRequest(cacheAddrWidth,0)
-    val tagsAddress = io.reqIn.bits.addrRequest(dataAddrWidth-1,cacheAddrWidth+1)
+    val cacheRows: Int = math.pow(2,cacheAddrWidth).toInt
+    val cacheAddress: UInt = io.reqIn.bits.addrRequest(cacheAddrWidth,0)
+    val tagsAddress: UInt = io.reqIn.bits.addrRequest(dataAddrWidth-1,cacheAddrWidth+1)
 
-    val cache_valid = SyncReadMem(cacheRows, Bool())    // VALID
-    val cache_tags = SyncReadMem(cacheRows,UInt((dataAddrWidth - cacheAddrWidth).W))   // TAGS
-    val cache_data = SyncReadMem(cacheRows,UInt(dataWidth.W))  // DATA
+    val cache_valid: SyncReadMem[Bool] = SyncReadMem(cacheRows, Bool())    // VALID
+    val cache_tags: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt((dataAddrWidth - cacheAddrWidth).W))   // TAGS
+    val cache_data: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt(dataWidth.W))  // DATA
 
-    for(i <- 0 to cacheRows.toInt-1){
+    for(i <- 0 until cacheRows){
         cache_valid.write(i.U(cacheAddrWidth.W),false.B)
     }
 
 
-    val validReg = RegInit(false.B)
-    val dataReg = RegInit(0.U)
-    val addrReg = RegInit(0.U)
+    val validReg: Bool = RegInit(false.B)
+    val dataReg: UInt = RegInit(0.U)
+    val addrReg: UInt = RegInit(0.U)
     val miss = WireInit(false.B)
 
-    val idle : caching : wait_for_dmem : cache_refill : Nil = Enum(4)
-    val state = RegInit(idle)   
+    val idle :: caching :: wait_for_dmem :: cache_refill :: Nil = Enum(4)
+    val state: UInt = RegInit(idle)
 
 
 
@@ -44,7 +44,7 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
       // READ
 
       
-      when(cache_valid.read(cacheAddress) && cache_tags.read(cacheAddress) === tagsAddress{
+      when(cache_valid.read(cacheAddress) && cache_tags.read(cacheAddress) === tagsAddress){
         // CACHE HIT
         dataReg := cache_data(cacheAddress)
         validReg := true.B
