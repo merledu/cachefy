@@ -24,8 +24,8 @@ lazy val root = (project in file("."))
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
   )
 
-lazy val caravan = (project in file("caravan"))
-lazy val jigsaw = (project in file("jigsaw"))
-dependsOn(caravan, jigsaw)
+// lazy val caravan = (project in file("caravan"))
+// lazy val jigsaw = (project in file("jigsaw"))
+// dependsOn(caravan, jigsaw)
 
 
