@@ -1,7 +1,12 @@
-Caches Repo
+CHISEL Caches
 =======================
 
-Start by setting up the working enviroment
+An CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
+
+### Architecture
+
+<img src="https://github.com/shahzaibk23/CHISEL-Caches/blob/master/docs/arch.png?raw=true" />
+
 
 ### Dependencies
 
