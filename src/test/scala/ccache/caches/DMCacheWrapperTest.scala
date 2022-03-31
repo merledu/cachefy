@@ -1,4 +1,4 @@
-package chisel_caches.caches
+package ccache.caches
 import  chisel3._
 import  chiseltest._
 import  org.scalatest._

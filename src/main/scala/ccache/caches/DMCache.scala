@@ -1,4 +1,4 @@
-package chisel_caches.caches
+package ccache.caches
 
 import chisel3._ 
 import chisel3.util._ 

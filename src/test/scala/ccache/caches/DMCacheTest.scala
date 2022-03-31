@@ -1,4 +1,4 @@
-package chisel_caches.caches
+package ccache.caches
 
 import org.scalatest.FreeSpec
 import chisel3._ 

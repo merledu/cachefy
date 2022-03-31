@@ -1,4 +1,4 @@
-package chisel_caches.caches
+package ccache.caches
 import caravan.bus.common.{AbstrRequest, AbstrResponse}
 import caravan.bus.native.{NativeRequest, NativeResponse}
 import caravan.bus.tilelink.{TLRequest, TLResponse, TilelinkConfig}
