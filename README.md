@@ -3,6 +3,9 @@ CHISEL Caches
 
 An CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
 
+
+This is not a standalone repository. It is a part of [SoC-Now-Generator](https://github.com/merledu/SoC-Now-Generator) .
+
 ### Architecture
 
 <img src="https://github.com/shahzaibk23/CHISEL-Caches/blob/master/docs/arch.png?raw=true" />
