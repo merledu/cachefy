@@ -1,11 +1,7 @@
-<<<<<<< HEAD
 // See README.md for license details.
 
 def scalacOptionsVersion(scalaVersion: String): Seq[String] = {
   Seq() ++ {
-    // If we're building with Scala > 2.11, enable the compile option
-    //  switch to support our anonymous Bundle definitions:
-    //  https://github.com/scala/bug/issues/10047
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, scalaMajor: Long)) if scalaMajor < 12 => Seq()
       case _ => Seq("-Xsource:2.11")
@@ -15,9 +11,6 @@ def scalacOptionsVersion(scalaVersion: String): Seq[String] = {
 
 def javacOptionsVersion(scalaVersion: String): Seq[String] = {
   Seq() ++ {
-    // Scala 2.12 requires Java 8. We continue to generate
-    //  Java 7 compatible code for Scala 2.11
-    //  for compatibility with old clients.
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, scalaMajor: Long)) if scalaMajor < 12 =>
         Seq("-source", "1.7", "-target", "1.7")
@@ -63,26 +56,3 @@ scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
 javacOptions ++= javacOptionsVersion(scalaVersion.value)
 
 trapExit := false
-=======
-ThisBuild / scalaVersion     := "2.13.7"
-ThisBuild / version          := "0.1.0"
-ThisBuild / organization     := "com.github.merledu"
-
-val chiselVersion = "3.5.0-RC2"
-
-lazy val root = (project in file("."))
-  .settings(
-    name := "ccache",
-    libraryDependencies ++= Seq(
-      "edu.berkeley.cs" %% "chisel3" % chiselVersion,
-      "edu.berkeley.cs" %% "chiseltest" % "0.5.0-RC2" % "test"
-    ),
-    scalacOptions ++= Seq(
-      "-language:reflectiveCalls",
-      "-deprecation",
-      "-feature",
-      "-Xcheckinit",
-    ),
-    addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full),
-  )
->>>>>>> 3f2424e952beeec66eea1463620e2a5c37e6924d
