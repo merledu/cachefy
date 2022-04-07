@@ -17,7 +17,6 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     })
 
   //TODO: MAKE ROWS AND COLS DYNAMIC
-    // val cache = Module(new DMCache(10,32,32/*, mainMem*/))
 
     val cacheRows: Int = math.pow(2,cacheAddrWidth).toInt
     
@@ -27,9 +26,6 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
     val startCaching: Bool = RegInit(false.B)
 
-    // for(i <- 0 until cacheRows){
-    //     cache_valid.write(i.U(cacheAddrWidth.W),false.B)
-    // }
 
 
     val validReg: Bool = RegInit(false.B)
@@ -92,20 +88,30 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
         io.reqOut.valid := miss
 
         when(state === idle){
+
             io.reqIn.ready := true.B
             state := Mux(io.reqIn.valid, Mux(io.reqIn.bits.isWrite, cache_write, cache_read), idle)
             startCaching := Mux(io.reqIn.valid, true.B, false.B)
             validReg := false.B
+
         }.elsewhen(state === cache_read || state === cache_write){
+
             state := Mux(miss,wait_for_dmem, idle)
+
         }.elsewhen(state === wait_for_dmem){
+
             io.rspIn.ready := true.B
             state := Mux(io.rspIn.valid, cache_refill, wait_for_dmem)
+
         }.elsewhen(state === cache_refill){
+
             cache_data(addrReg) := io.rspIn.bits.dataResponse
             dataReg := io.rspIn.bits.dataResponse
             state := idle
+
         }
+
+    // delaying the response by 1 clk
     val vvalid = Wire(Valid(UInt(1.W)))
     vvalid.valid := true.B
     vvalid.bits := validReg.asUInt
