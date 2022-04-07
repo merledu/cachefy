@@ -40,6 +40,7 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
     val indexBits: UInt = addrSaver(cacheAddrWidth,0)
     val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth+1)
+    
 
 
     def fire() = io.reqIn.valid
@@ -73,6 +74,7 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
             cache_data(indexBits) := dataSaver
             validReg := true.B
             dataReg := dataSaver
+
         }
     }
 
@@ -124,6 +126,12 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     addrSaver := io.reqIn.bits.addrRequest
     dataSaver := io.reqIn.bits.dataRequest
 
-    
+    when(startCaching && fire && io.reqIn.bits.isWrite){
+        io.reqOut.bits.addrRequest := addrSaver
+        io.reqOut.bits.dataRequest := dataSaver
+        io.reqOut.bits.isWrite := true.B
+        io.reqOut.bits.activeByteLane := "b1111".U 
+        io.reqOut.valid := true.B
+    }
 
 }
