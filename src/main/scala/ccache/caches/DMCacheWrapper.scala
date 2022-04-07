@@ -8,19 +8,19 @@ import caravan.bus.common.{AbstrRequest, AbstrResponse, BusConfig}
 class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
                     (cacheAddrWidth:Int, dataAddrWidth:Int, dataWidth:Int)(gen: A, gen1: B) extends Module {
     val io = IO(new Bundle{
-      val reqIn:          DecoupledIO[A]      =      Flipped(Decoupled(gen))
-      val rspOut:       DecoupledIO[B]      =      Decoupled(gen1)
-      val reqOut:       DecoupledIO[A]      =     Decoupled(gen)
-      val rspIn:          DecoupledIO[B]      =     Flipped(Decoupled(gen1))
+
+      val reqIn :         DecoupledIO[A]      =      Flipped(Decoupled(gen ))
+      val rspOut:         DecoupledIO[B]      =              Decoupled(gen1)
+      val reqOut:         DecoupledIO[A]      =              Decoupled(gen )
+      val rspIn :         DecoupledIO[B]      =      Flipped(Decoupled(gen1))
+
     })
 
   //TODO: MAKE ROWS AND COLS DYNAMIC
     // val cache = Module(new DMCache(10,32,32/*, mainMem*/))
 
     val cacheRows: Int = math.pow(2,cacheAddrWidth).toInt
-    val indexBits: UInt = io.reqIn.bits.addrRequest(cacheAddrWidth,0)
-    val tagBits: UInt = io.reqIn.bits.addrRequest(dataAddrWidth-1,cacheAddrWidth+1)
-
+    
     val cache_valid: SyncReadMem[Bool] = SyncReadMem(cacheRows, Bool())    // VALID
     val cache_tags: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt((dataAddrWidth - cacheAddrWidth).W))   // TAGS
     val cache_data: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt(dataWidth.W))  // DATA
@@ -36,13 +36,21 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     val dataReg: UInt = RegInit(0.U)
     val addrReg: UInt = RegInit(0.U)
     val miss = WireInit(false.B)
+    val addrSaver = RegInit(io.reqIn.bits.addrRequest)
+    val dataSaver = RegInit(io.reqIn.bits.dataRequest)
 
     val idle :: caching :: wait_for_dmem :: cache_refill :: Nil = Enum(4)
     val state: UInt = RegInit(idle)
 
+    val indexBits: UInt = addrSaver(cacheAddrWidth,0)
+    val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth+1)
+
+
+    def fire() = io.reqIn.valid
+    dontTouch(io.reqIn.ready)
 
     when(startCaching) {
-        when(io.reqIn.fire() && !io.reqIn.bits.isWrite) {
+        when(fire() && !io.reqIn.bits.isWrite) {
             // READ
 
 
@@ -60,15 +68,15 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
                 // state := wait_for_dmem
             }
 
-        }.elsewhen(io.reqIn.fire() && io.reqIn.bits.isWrite) {
+        }.elsewhen(fire() && io.reqIn.bits.isWrite) {
             // WRITE -- MISS
 
             // TODO: WRITE INTO CACHE (NO WRITE MISSES)
             cache_valid(indexBits) := true.B
             cache_tags(indexBits) := tagBits
-            cache_data(indexBits) := io.reqIn.bits.dataRequest
+            cache_data(indexBits) := dataSaver
             validReg := true.B
-            dataReg := io.reqIn.bits.dataRequest
+            dataReg := dataSaver
         }
     }
 
@@ -80,8 +88,6 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
         // io.reqIn.ready := true.B // assuming we are always ready to accept requests from device
 
         io.rspOut.bits.dataResponse := Mux(io.rspIn.valid, io.rspIn.bits.dataResponse, dataReg)
-
-
         io.reqOut.bits <> io.reqIn.bits
         io.reqOut.valid := miss
 
@@ -89,9 +95,10 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
             io.reqIn.ready := true.B
             state := Mux(io.reqIn.valid, caching, idle)
             startCaching := Mux(io.reqIn.valid, true.B, false.B)
+            validReg := false.B
         }.elsewhen(state === caching){
-
             state := Mux(miss,wait_for_dmem, idle)
+            validReg := ~miss
         }.elsewhen(state === wait_for_dmem){
             io.rspIn.ready := true.B
             state := Mux(io.rspIn.valid, cache_refill, wait_for_dmem)
@@ -107,8 +114,8 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
     io.rspOut.bits.dataResponse := dataReg
 
-
-
+    addrSaver := io.reqIn.bits.addrRequest
+    dataSaver := io.reqIn.bits.dataRequest
 
     
 
