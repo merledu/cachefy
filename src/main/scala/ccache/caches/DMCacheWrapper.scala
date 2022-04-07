@@ -111,12 +111,12 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
         }
 
-    // delaying the response by 1 clk
+    // delaying the response by 1 clk cycle
     val vvalid = Wire(Valid(UInt(1.W)))
     vvalid.valid := true.B
     vvalid.bits := validReg.asUInt
     val pipedVal = Pipe(vvalid)
-    io.rspOut.valid := pipedVal.bits.asBool
+    io.rspOut.valid :=Mux(state === cache_read, pipedVal.bits.asBool, validReg) 
     io.rspOut.bits.error := false.B
     
     io.rspOut.bits.dataResponse := dataReg
