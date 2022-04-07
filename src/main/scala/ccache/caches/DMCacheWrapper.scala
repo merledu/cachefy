@@ -98,11 +98,6 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
             validReg := false.B
         }.elsewhen(state === cache_read || state === cache_write){
             state := Mux(miss,wait_for_dmem, idle)
-            // validReg := ~miss
-        // }.elsewhen(state === read_cache){
-        //     // validReg := ~miss
-        //     // dataReg := dataReg
-        //     state := idle
         }.elsewhen(state === wait_for_dmem){
             io.rspIn.ready := true.B
             state := Mux(io.rspIn.valid, cache_refill, wait_for_dmem)
@@ -117,7 +112,6 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     val pipedVal = Pipe(vvalid)
     io.rspOut.valid := pipedVal.bits.asBool
     io.rspOut.bits.error := false.B
-    // io.reqIn.ready := true.B // assuming we are always ready to accept requests from device
     
     io.rspOut.bits.dataResponse := dataReg
 
