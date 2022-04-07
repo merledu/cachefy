@@ -27,9 +27,9 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
     val startCaching: Bool = RegInit(false.B)
 
-    for(i <- 0 until cacheRows){
-        cache_valid.write(i.U(cacheAddrWidth.W),false.B)
-    }
+    // for(i <- 0 until cacheRows){
+    //     cache_valid.write(i.U(cacheAddrWidth.W),false.B)
+    // }
 
 
     val validReg: Bool = RegInit(false.B)
@@ -39,7 +39,7 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     val addrSaver = RegInit(io.reqIn.bits.addrRequest)
     val dataSaver = RegInit(io.reqIn.bits.dataRequest)
 
-    val idle :: caching :: wait_for_dmem :: cache_refill :: Nil = Enum(4)
+    val idle :: cache_read :: cache_write :: wait_for_dmem :: cache_refill :: Nil = Enum(5)
     val state: UInt = RegInit(idle)
 
     val indexBits: UInt = addrSaver(cacheAddrWidth,0)
@@ -93,12 +93,16 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
         when(state === idle){
             io.reqIn.ready := true.B
-            state := Mux(io.reqIn.valid, caching, idle)
+            state := Mux(io.reqIn.valid, Mux(io.reqIn.bits.isWrite, cache_write, cache_read), idle)
             startCaching := Mux(io.reqIn.valid, true.B, false.B)
             validReg := false.B
-        }.elsewhen(state === caching){
+        }.elsewhen(state === cache_read || state === cache_write){
             state := Mux(miss,wait_for_dmem, idle)
-            validReg := ~miss
+            // validReg := ~miss
+        // }.elsewhen(state === read_cache){
+        //     // validReg := ~miss
+        //     // dataReg := dataReg
+        //     state := idle
         }.elsewhen(state === wait_for_dmem){
             io.rspIn.ready := true.B
             state := Mux(io.rspIn.valid, cache_refill, wait_for_dmem)
@@ -107,11 +111,14 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
             dataReg := io.rspIn.bits.dataResponse
             state := idle
         }
-
-    io.rspOut.valid := validReg
+    val vvalid = Wire(Valid(UInt(1.W)))
+    vvalid.valid := true.B
+    vvalid.bits := validReg.asUInt
+    val pipedVal = Pipe(vvalid)
+    io.rspOut.valid := pipedVal.bits.asBool
     io.rspOut.bits.error := false.B
     // io.reqIn.ready := true.B // assuming we are always ready to accept requests from device
-
+    
     io.rspOut.bits.dataResponse := dataReg
 
     addrSaver := io.reqIn.bits.addrRequest
