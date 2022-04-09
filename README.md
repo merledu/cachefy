@@ -1,4 +1,4 @@
-CHISEL Caches
+Cachefy
 =======================
 
 An CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
