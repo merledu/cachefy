@@ -1,5 +1,7 @@
 Cachefy
 =======================
+![Apache License](https://img.shields.io/github/license/merledu/caravan?style=plastic)
+![GitHub contributors](https://img.shields.io/github/contributors/merledu/caravan?style=plastic)
 
 An CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
 
