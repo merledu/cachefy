@@ -39,8 +39,8 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     val state: UInt = RegInit(idle)
 
     val indexBits: UInt = addrSaver(cacheAddrWidth,0)
-    val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth+1)
-    
+    val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth)
+
 
 
     def fire() = io.reqIn.valid
