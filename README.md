@@ -3,7 +3,7 @@ Cachefy
 ![Apache License](https://img.shields.io/github/license/merledu/cachefy?style=plastic)
 ![GitHub contributors](https://img.shields.io/github/contributors/merledu/cachefy?style=plastic)
 
-An CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
+A CHISEL Framework that provides Plun n Play API for connecting Caches in any of your CHISEL designs.
 
 This Framework works in sync with [Jigsaw](https://github.com/merledu/jigsaw) Framework which provides memory devices in CHISEL designs, with which caches can be connected on.
 
