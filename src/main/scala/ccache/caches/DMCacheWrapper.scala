@@ -34,27 +34,43 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
     val miss = WireInit(false.B)
     val addrSaver = RegInit(io.reqIn.bits.addrRequest)
     val dataSaver = RegInit(io.reqIn.bits.dataRequest)
+    val funcSaver = RegInit(io.reqIn.bits.isWrite)
 
     val idle :: cache_read :: cache_write :: wait_for_dmem :: cache_refill :: Nil = Enum(5)
     val state: UInt = RegInit(idle)
 
-    val indexBits: UInt = addrSaver(cacheAddrWidth,0)
+    val indexBits: UInt = addrSaver(cacheAddrWidth-1,0)
     val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth)
 
+    val  cond = WireInit(false.B)
+    val valuu = Wire(UInt((dataAddrWidth - cacheAddrWidth).W))
 
+    val currentTag = RegInit(cache_tags.read(indexBits, true.B))
+    val currentValid = RegInit(cache_valid.read(indexBits, true.B))
+    
+    currentTag := cache_tags.read(indexBits, true.B)
+    currentValid := cache_valid.read(indexBits, true.B)
+
+    dontTouch(currentTag)
+    dontTouch(currentValid)
 
     def fire() = io.reqIn.valid
     dontTouch(io.reqIn.ready)
-
+    cond := cache_valid.read(indexBits, true.B) && cache_tags.read(indexBits, true.B) === tagBits
+    valuu := cache_tags.read(indexBits, true.B)
+    dontTouch(cond)
+    dontTouch(valuu)
     when(startCaching) {
         when(fire() && !io.reqIn.bits.isWrite) {
             // READ
 
 
+            
             when(cache_valid.read(indexBits) && cache_tags.read(indexBits) === tagBits) {
                 // CACHE HIT
                 dataReg := cache_data(indexBits)
                 validReg := true.B
+                miss := false.B
             }.otherwise {
                 // CACHE MISS
                 cache_valid(indexBits) := true.B
@@ -86,7 +102,11 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
         // io.reqIn.ready := true.B // assuming we are always ready to accept requests from device
 
         io.rspOut.bits.dataResponse := Mux(io.rspIn.valid, io.rspIn.bits.dataResponse, dataReg)
-        io.reqOut.bits <> io.reqIn.bits
+        // io.reqOut.bits <> io.reqIn.bits
+        io.reqOut.bits.addrRequest := addrSaver
+        io.reqOut.bits.dataRequest := dataSaver
+        io.reqOut.bits.isWrite := funcSaver
+        io.reqOut.bits.activeByteLane := "b1111".U
         io.reqOut.valid := miss
 
         when(state === idle){
@@ -125,6 +145,7 @@ class DMCacheWrapper[A <: AbstrRequest, B <: AbstrResponse]
 
     addrSaver := io.reqIn.bits.addrRequest
     dataSaver := io.reqIn.bits.dataRequest
+    funcSaver := io.reqIn.bits.isWrite
 
     when(startCaching && fire && io.reqIn.bits.isWrite){
         io.reqOut.bits.addrRequest := addrSaver
