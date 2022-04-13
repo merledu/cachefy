@@ -13,43 +13,59 @@ class DMCache(cacheAddrWidth:Int, dataAddrWidth:Int, dataWidth:Int) extends Modu
         val data_out = Output(UInt(dataWidth.W))
         val miss = Output(Bool())
     })
-
-   val cacheRows = (math.pow(2,cacheAddrWidth)).toInt
     
-    // val mem = Module(mainMem) //SyncReadMem(cache_width, UInt(32.W))
-    val cache_valid = SyncReadMem(cacheRows, Bool())    // VALID
-    val cache_tags = SyncReadMem(cacheRows,UInt((dataAddrWidth - cacheAddrWidth).W))   // TAGS
-    val cache_data = SyncReadMem(cacheRows,UInt(dataWidth.W))  // DATA
+    val cacheRows: Int = math.pow(2,cacheAddrWidth).toInt
+    
+    val cache_valid: SyncReadMem[Bool] = SyncReadMem(cacheRows, Bool())    // VALID
+    val cache_tags: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt((dataAddrWidth - cacheAddrWidth).W))   // TAGS
+    val cache_data: SyncReadMem[UInt] = SyncReadMem(cacheRows,UInt(dataWidth.W))  // DATA
 
-    for(i <- 0 to cacheRows.toInt-1){
-        cache_valid.write(i.U(cacheAddrWidth.W),false.B)
-    }
+    val indexBits: UInt = addrSaver(cacheAddrWidth-1,0)
+    val tagBits: UInt = addrSaver(dataAddrWidth-1,cacheAddrWidth)
+
 
     val data = WireInit(0.U(dataWidth.W))
     val miss = WireInit(true.B)
 
+    val takeRequest :: throwResponse :: Nil = Enum(2)
+    val state = RegInit(takeRequest)
 
-    when(io.wr_en === true.B){         // write req
+    val dataReg = RegInit(0.U)
+    val tagsReg = RegInit(0.U)
+    val validReg = RegInit(false.B)
+    val tagBitsFwd = RegInit(0.U)
+    val datainFwd = RegInit(0.U)
+    val wrEnFwd = RegInit(false.B)
+
+
+    when(wrEnFwd === true.B){         // write req
         miss := true.B
-        cache_valid(io.adr(cacheAddrWidth, 0)) := true.B
-        cache_tags(io.adr(cacheAddrWidth, 0)) := io.adr(dataAddrWidth-1,cacheAddrWidth+1)
-        cache_data(io.adr(cacheAddrWidth, 0)) := io.data_in
+        cache_valid(indexBits) := true.B
+        cache_tags(indexBits) := tagBitsFwd
+        cache_data(indexBits) := datainFwd
     }.otherwise{
 
-        // CACHE HIT
-        when(cache_valid.read(io.adr(cacheAddrWidth,0)) && cache_tags.read(io.adr(cacheAddrWidth,0)) === io.adr(dataAddrWidth-1,cacheAddrWidth+1)){
+    // CACHE HIT
+        when(validReg && tagsReg === tagBitsFwd){
                 
-                data := cache_data(io.adr(cacheAddrWidth,0))
+                data := dataReg
                 miss := false.B
 
         // CACHE MISS
         }.otherwise{
 
-                // TO BE IMPLEMENTED
                 miss := true.B
                 
         }
     }
+
+    dataReg  := cache_data.read(indexBits, true.B)
+    tagsReg  := cache_tags.read(indexBits, true.B)
+    validReg := cache_valid.read(indexBits, true.B)
+    tagBitsFwd := tagBits
+    datainFwd := io.data_in
+    wrEnFwd := io.wr_en
+
 
 
     io.data_out := data
