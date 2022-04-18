@@ -14,6 +14,12 @@ This is not a standalone repository. It is a part of [SoC-Now-Generator](https:/
 <img src="https://github.com/shahzaibk23/CHISEL-Caches/blob/master/docs/arch.png?raw=true" />
 
 
+### Current Cache Implementations
+
+| Module  | Purpose |
+| ------------- | ------------- |
+| DMCacheWrapper | Direct Mapped Cache that will communicate with Jigsaw Data Mem automatically on misses |
+| DMCache | Tilelink Cached Compatible Direct Mapped Cache which will respond only Hits and Misses, TL-C shall do the rest "
 ### Dependencies
 
 #### JDK 8 or newer
