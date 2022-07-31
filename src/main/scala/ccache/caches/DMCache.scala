@@ -10,8 +10,8 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
                     (cacheAddrWidth:Int, dataAddrWidth:Int, dataWidth:Int)(gen: A, gen1: B)(implicit val config:TilelinkConfig) extends Module with OpCodes {
     val io = IO(new Bundle{
 
-      val reqIn : DecoupledIO[A]      =      Flipped(Decoupled(gen ))
-      val rspOut: DecoupledIO[B]      =              Decoupled(gen1)
+      val tlMasterReceiver = Flipped(Decoupled(new TilelinkMaster()))
+      val tlSlaveTransmitter = Decoupled(new TilelinkSlave())
 
       val tlMasterTransmitter = Decoupled(new TilelinkMaster)
       val tlSlaveReceiver    = Flipped(Decoupled(new TilelinkSlave))
@@ -33,7 +33,7 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
     val idle :: caching :: wait_for_dmem :: Nil = Enum(3)
     val state     = RegInit(idle)
 
-    val reqSaver  = RegInit(0.U.asTypeOf(gen))
+    val reqSaver  = RegInit(0.U.asTypeOf(new TilelinkMaster))
     val rspGiver  = RegInit(0.U)
 
     val currentCacheValid = RegInit(false.B)
@@ -56,12 +56,12 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
     io.tlMasterTransmitter.bits <> 0.U.asTypeOf(new TilelinkMaster)
     io.tlMasterTransmitter.valid := false.B
     // pipedValid <> 0.U.asTypeOf(Valid(UInt(1.W)))
-    io.rspOut.bits <> 0.U.asTypeOf(gen1)
-    io.rspOut.valid := false.B
+    io.tlSlaveTransmitter.bits <> 0.U.asTypeOf(new TilelinkSlave)
+    io.tlSlaveTransmitter.valid := false.B
     pipedValid.bits := 0.U
     pipedValid.valid := false.B
 
-    io.reqIn.ready := true.B
+    io.tlMasterReceiver.ready := true.B
     io.tlSlaveReceiver.ready := false.B
 
     dontTouch(rspGiver)
@@ -70,14 +70,14 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
 
     when(state === idle){
 
-      switch(io.reqIn.valid){
+      switch(io.tlMasterReceiver.valid){
         is(true.B){
           state := caching
-          reqSaver := io.reqIn.bits
-          currentCacheTags := cache_tags.read(io.reqIn.bits.addrRequest(cacheAddrWidth-1,0))
-          currentCacheValid := cache_valid.read(io.reqIn.bits.addrRequest(cacheAddrWidth-1,0))
-          indexBits := io.reqIn.bits.addrRequest(cacheAddrWidth-1,0)
-          tagBits := io.reqIn.bits.addrRequest(dataAddrWidth-1,cacheAddrWidth)
+          reqSaver := io.tlMasterReceiver.bits
+          currentCacheTags := cache_tags.read(io.tlMasterReceiver.bits.a_address(cacheAddrWidth-1,0))
+          currentCacheValid := cache_valid.read(io.tlMasterReceiver.bits.a_address(cacheAddrWidth-1,0))
+          indexBits := io.tlMasterReceiver.bits.a_address(cacheAddrWidth-1,0)
+          tagBits := io.tlMasterReceiver.bits.a_address(dataAddrWidth-1,cacheAddrWidth)
         }
         is(false.B){
           state := idle
@@ -93,23 +93,23 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
 
     }.elsewhen(state === caching){
 
-      switch(reqSaver.isWrite){
+      switch(reqSaver.a_opcode === PutFullData.U || reqSaver.a_opcode === PutPartialData.U){
         is(true.B){
 
           // send write through req to DMEM
           io.tlMasterTransmitter.bits.a_opcode  := PutFullData.U 
-          io.tlMasterTransmitter.bits.a_address := reqSaver.addrRequest
-          io.tlMasterTransmitter.bits.a_data    := reqSaver.dataRequest
-          io.tlMasterTransmitter.bits.a_mask    := reqSaver.activeByteLane
+          io.tlMasterTransmitter.bits.a_address := reqSaver.a_address
+          io.tlMasterTransmitter.bits.a_data    := reqSaver.a_data
+          io.tlMasterTransmitter.bits.a_mask    := reqSaver.a_mask
 
           io.tlMasterTransmitter.valid := true.B
 
           // Filling up cache
-          cache_data(indexBits) := reqSaver.dataRequest
+          cache_data(indexBits) := reqSaver.a_data
           cache_tags(indexBits) := tagBits
           cache_valid(indexBits) := true.B
 
-          io.rspOut.valid := true.B
+          io.tlSlaveTransmitter.valid := true.B
           state := idle
 
         }
@@ -121,9 +121,9 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
             is(true.B){
 
               io.tlMasterTransmitter.bits.a_opcode   := Acquire.U
-              io.tlMasterTransmitter.bits.a_address  := reqSaver.addrRequest
-              io.tlMasterTransmitter.bits.a_data     := reqSaver.dataRequest
-              io.tlMasterTransmitter.bits.a_mask     := reqSaver.activeByteLane
+              io.tlMasterTransmitter.bits.a_address  := reqSaver.a_address
+              io.tlMasterTransmitter.bits.a_data     := reqSaver.a_data
+              io.tlMasterTransmitter.bits.a_mask     := reqSaver.a_mask
 
               io.tlMasterTransmitter.valid := true.B
 
@@ -138,14 +138,14 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
       
 
               // state := Mux(io.rspIn.valid, idle, wait_for_dmem)
-                      io.rspOut.bits.dataResponse := cache_data.read(indexBits)
+                      io.tlSlaveTransmitter.bits.d_data := cache_data.read(indexBits)
                       
                       rspGiver := cache_data.read(indexBits)
                       // pipedValid.valid := true.B
                       // pipedValid.bits  := 1.U
                       // val pipeVal = Pipe(pipedValid)
                       // io.rspOut.valid := pipeVal.bits.asBool
-                      io.rspOut.valid := true.B
+                      io.tlSlaveTransmitter.valid := true.B
                       state := idle
             }
           }
@@ -156,15 +156,15 @@ class DMCache[A <: AbstrRequest, B <: AbstrResponse]
 
     }.elsewhen(state === wait_for_dmem){
 
-      io.reqIn.ready := false.B
+      io.tlMasterReceiver.ready := false.B
       io.tlSlaveReceiver.ready := true.B
 
       switch(io.tlSlaveReceiver.valid){
 
         is(true.B){
             cache_data(indexBits) := io.tlSlaveReceiver.bits.d_data
-            io.rspOut.bits.dataResponse := io.tlSlaveReceiver.bits.d_data
-            io.rspOut.valid := true.B
+            io.tlSlaveTransmitter.bits.d_data := io.tlSlaveReceiver.bits.d_data
+            io.tlMasterTransmitter.valid := true.B
 
             // io.tlAckTransmitter.bits.e_sink := 0.U
             // io.tlAckTransmitter.valid := true.B
