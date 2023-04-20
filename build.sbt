@@ -20,7 +20,9 @@ def javacOptionsVersion(scalaVersion: String): Seq[String] = {
   }
 }
 
-name := "ccache"
+lazy val caravan = (project in file("caravan"))
+
+name := "cachefy"
 
 version := "3.2.0"
 
@@ -56,3 +58,5 @@ scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
 javacOptions ++= javacOptionsVersion(scalaVersion.value)
 
 trapExit := false
+
+dependsOn(caravan)
